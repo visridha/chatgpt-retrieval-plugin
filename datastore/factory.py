@@ -31,6 +31,10 @@ async def get_datastore() -> DataStore:
             from datastore.providers.redis_datastore import RedisDataStore
 
             return await RedisDataStore.init()
+        case "azcosmosdb":
+            from datastore.providers.azcosmosdb_datastore import AzCosmosDBDataStore
+
+            return await AzCosmosDBDataStore.create()
         case "qdrant":
             from datastore.providers.qdrant_datastore import QdrantDataStore
 
