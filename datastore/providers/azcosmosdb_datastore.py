@@ -35,25 +35,25 @@ VECTOR_DIMENSION = 1536
 # Abstract class similar to the original data store that allows API level abstraction
 class CosmosStoreApi(ABC):
     @abstractmethod
-    async def _ensure(self):
+    async def ensure(self):
         raise NotImplementedError
     @abstractmethod
-    async def _upsert_core(self, docId: str, chunks: List[DocumentChunk]) -> List[str]:
+    async def upsert_core(self, docId: str, chunks: List[DocumentChunk]) -> List[str]:
         raise NotImplementedError
     @abstractmethod
-    async def _query_core(self, query: QueryWithEmbedding) -> List[DocumentChunkWithScore]:
+    async def query_core(self, query: QueryWithEmbedding) -> List[DocumentChunkWithScore]:
         raise NotImplementedError
     @abstractmethod
-    async def _drop_container(self):
+    async def drop_container(self):
         raise NotImplementedError
     @abstractmethod
-    async def _delete_filter(self, filter: DocumentMetadataFilter):
+    async def delete_filter(self, filter: DocumentMetadataFilter):
         raise NotImplementedError
     @abstractmethod
-    async def _delete_ids(self, ids: List[str]):
+    async def delete_ids(self, ids: List[str]):
         raise NotImplementedError
     @abstractmethod
-    async def _delete_document_ids(self, documentIds: List[str]):
+    async def delete_document_ids(self, documentIds: List[str]):
         raise NotImplementedError
 
 class MongoStoreApi(CosmosStoreApi):
@@ -61,7 +61,7 @@ class MongoStoreApi(CosmosStoreApi):
         self.mongoClient = mongoClient
 
     @staticmethod
-    def __get_metadata_filter(filter: DocumentMetadataFilter) -> dict:
+    def _get_metadata_filter(filter: DocumentMetadataFilter) -> dict:
         returnedFilter: dict = {}
         if filter.document_id != None:
             returnedFilter["document_id"] = filter.document_id
@@ -77,7 +77,7 @@ class MongoStoreApi(CosmosStoreApi):
             returnedFilter["metadata.source_id"] = filter.source_id
         return returnedFilter
 
-    async def _ensure(self):
+    async def ensure(self):
         assert self.mongoClient.is_mongos
         self.collection = self.mongoClient[AZCOSMOS_DATABASE_NAME][AZCOSMOS_CONTAINER_NAME]
 
@@ -88,7 +88,7 @@ class MongoStoreApi(CosmosStoreApi):
                 { "name": "embedding_cosmosSearch", "key": { "embedding": "cosmosSearch" }, "cosmosSearchOptions": { "kind": "vector-ivf", "similarity": "COS", "dimensions": VECTOR_DIMENSION } }
             ]
             self.mongoClient[AZCOSMOS_DATABASE_NAME].command("createIndexes", AZCOSMOS_CONTAINER_NAME, indexes = indexDefs)
-    async def _upsert_core(self, docId: str, chunks: List[DocumentChunk]) -> List[str]:
+    async def upsert_core(self, docId: str, chunks: List[DocumentChunk]) -> List[str]:
         # Until nested doc embedding support is done, treat each chunk as a separate doc.
         doc_ids: List[str] = []
         for chunk in chunks:
@@ -104,12 +104,12 @@ class MongoStoreApi(CosmosStoreApi):
             self.collection.insert_one(finalDocChunk)
             doc_ids.append(finalDocChunk["_id"])
         return doc_ids
-    async def _query_core(self, query: QueryWithEmbedding) -> List[DocumentChunkWithScore]:
+    async def query_core(self, query: QueryWithEmbedding) -> List[DocumentChunkWithScore]:
         pipeline = [
                 { "$search": { "cosmosSearch": { "vector": query.embedding, "path": "embedding", "k": query.top_k } } }
             ]
         
-        additionalFilters = self.__get_metadata_filter(query.filter)
+        additionalFilters = self._get_metadata_filter(query.filter)
         if len(additionalFilters) > 0:
             pipeline.append({ "$match": additionalFilters })
 
@@ -127,15 +127,15 @@ class MongoStoreApi(CosmosStoreApi):
             )
             query_results.append(result)
         return query_results
-    async def _drop_container(self):
+    async def drop_container(self):
         self.collection.drop()
         await self._ensure()
-    async def _delete_filter(self, filter: DocumentMetadataFilter):
-        delete_filter = self.__get_metadata_filter(filter)
+    async def delete_filter(self, filter: DocumentMetadataFilter):
+        delete_filter = self._get_metadata_filter(filter)
         self.collection.delete_many(delete_filter)
-    async def _delete_ids(self, ids: List[str]):
+    async def delete_ids(self, ids: List[str]):
         self.collection.delete_many({ "_id": { "$in": ids }})
-    async def _delete_document_ids(self, documentIds: List[str]):
+    async def delete_document_ids(self, documentIds: List[str]):
         self.collection.delete_many({ "document_id": { "$in": documentIds }})
 
 # Datastore implementation.
@@ -156,7 +156,7 @@ class AzCosmosDBDataStore(DataStore):
             case _:
                 raise NotImplementedError
 
-        await apiStore._ensure()
+        await apiStore.ensure()
         store = AzCosmosDBDataStore(apiStore)
         return store
 
@@ -168,7 +168,7 @@ class AzCosmosDBDataStore(DataStore):
         # Initialize a list of ids to return
         doc_ids: List[str] = []
         for doc_id, chunk_list in chunks.items():
-            returnedIds = await self.cosmosStore._upsert_core(doc_id, chunk_list)
+            returnedIds = await self.cosmosStore.upsert_core(doc_id, chunk_list)
             for returnedId in returnedIds:
                 doc_ids.append(returnedId)
         return doc_ids
@@ -189,7 +189,7 @@ class AzCosmosDBDataStore(DataStore):
         for query in queries:
 
             logging.info(f"Query: {query.query}")
-            query_results = await self.cosmosStore._query_core(query)
+            query_results = await self.cosmosStore.query_core(query)
 
             # Add to overall results
             results.append(QueryResult(query=query.query, results=query_results))
@@ -207,16 +207,16 @@ class AzCosmosDBDataStore(DataStore):
         """
         if delete_all:
             # fast path - truncate/delete all items.
-            await self.cosmosStore._drop_container()
+            await self.cosmosStore.drop_container()
             return True
 
         if filter:
             if filter.document_id != None:
-                await self.cosmosStore._delete_document_ids([ filter.document_id ])
+                await self.cosmosStore.delete_document_ids([ filter.document_id ])
             else:
-                await self.cosmosStore._delete_filter(filter)
+                await self.cosmosStore.delete_filter(filter)
 
         if ids:
-            await self.cosmosStore._delete_ids(ids)
+            await self.cosmosStore.delete_ids(ids)
 
         return True
