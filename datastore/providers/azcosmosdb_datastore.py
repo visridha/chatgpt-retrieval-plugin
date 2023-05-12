@@ -19,13 +19,13 @@ from models.models import (
 )
 from services.date import to_unix_timestamp
 
-# Read environment variables for Mongo
+# Read environment variables for Azure CosmosDB
 AZCOSMOS_API = os.environ.get("AZCOSMOS_API", "mongo")
 AZCOSMOS_CONNSTR = os.environ.get("AZCOSMOS_CONNSTR")
 AZCOSMOS_DATABASE_NAME = os.environ.get("AZCOSMOS_DATABASE_NAME")
 AZCOSMOS_CONTAINER_NAME = os.environ.get("AZCOSMOS_CONTAINER_NAME")
 assert AZCOSMOS_API is not None
-assert AZCOSMOS_API is not None
+assert AZCOSMOS_CONNSTR is not None
 assert AZCOSMOS_DATABASE_NAME is not None
 assert AZCOSMOS_CONTAINER_NAME is not None
 
