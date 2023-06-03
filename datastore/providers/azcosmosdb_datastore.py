@@ -108,11 +108,8 @@ class MongoStoreApi(CosmosStoreApi):
         pipeline = [
                 { "$search": { "cosmosSearch": { "vector": query.embedding, "path": "embedding", "k": query.top_k } } }
             ]
-        
-        additionalFilters = self._get_metadata_filter(query.filter)
-        if len(additionalFilters) > 0:
-            pipeline.append({ "$match": additionalFilters })
 
+        # TODO: Add in match filter (once it can be satisfied).
         # Perform vector search
         query_results: List[DocumentChunkWithScore] = []
         for aggResult in self.collection.aggregate(pipeline):
