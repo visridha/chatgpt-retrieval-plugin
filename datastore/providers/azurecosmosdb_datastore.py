@@ -33,7 +33,7 @@ assert AZCOSMOS_CONTAINER_NAME is not None
 VECTOR_DIMENSION = 1536
 
 # Abstract class similar to the original data store that allows API level abstraction
-class CosmosStoreApi(ABC):
+class AzureCosmosDBStoreApi(ABC):
     @abstractmethod
     async def ensure(self):
         raise NotImplementedError
@@ -56,7 +56,7 @@ class CosmosStoreApi(ABC):
     async def delete_document_ids(self, documentIds: List[str]):
         raise NotImplementedError
 
-class MongoStoreApi(CosmosStoreApi):
+class MongoStoreApi(AzureCosmosDBStoreApi):
     def __init__(self, mongoClient: MongoClient):
         self.mongoClient = mongoClient
 
@@ -136,8 +136,8 @@ class MongoStoreApi(CosmosStoreApi):
         self.collection.delete_many({ "document_id": { "$in": documentIds }})
 
 # Datastore implementation.
-class AzCosmosDBDataStore(DataStore):
-    def __init__(self, cosmosStore: CosmosStoreApi):
+class AzureCosmosDBDataStore(DataStore):
+    def __init__(self, cosmosStore: AzureCosmosDBStoreApi):
         self.cosmosStore = cosmosStore
 
     @staticmethod
@@ -145,7 +145,7 @@ class AzCosmosDBDataStore(DataStore):
 
         # Create underlying data store based on the API definition.
         # Right now this only supports Mongo, but set up to support more.
-        apiStore: CosmosStoreApi = None
+        apiStore: AzureCosmosDBStoreApi = None
         match AZCOSMOS_API:
             case "mongo":
                 mongoClient = MongoClient(AZCOSMOS_CONNSTR)
@@ -154,7 +154,7 @@ class AzCosmosDBDataStore(DataStore):
                 raise NotImplementedError
 
         await apiStore.ensure()
-        store = AzCosmosDBDataStore(apiStore)
+        store = AzureCosmosDBDataStore(apiStore)
         return store
 
     async def _upsert(self, chunks: Dict[str, List[DocumentChunk]]) -> List[str]:

@@ -48,6 +48,7 @@ This README provides detailed information on how to set up, develop, and deploy 
     - [Supabase](#supabase)
     - [Postgres](#postgres)
     - [AnalyticDB](#analyticdb)
+    - [Azure CosmosDB](#azure-cosmos-db)
   - [Running the API Locally](#running-the-api-locally)
   - [Testing a Localhost Plugin in ChatGPT](#testing-a-localhost-plugin-in-chatgpt)
   - [Personalization](#personalization)
@@ -166,6 +167,12 @@ Follow these steps to quickly set up and run the ChatGPT Retrieval Plugin:
    export PG_USER=<postgres_user>
    export PG_PASSWORD=<postgres_password>
    export PG_DATABASE=<postgres_database>
+
+   # Azure Cosmos DB
+   export AZCOSMOS_API=<api_supporting_vector_search>
+   export AZCOSMOS_CONNSTR=<your_connection_string_to_azure_cosmosdb_endpoint>
+   export AZCOSMOS_DATABASE_NAME=<azure_cosmos_db_database>
+   export AZCOSMOS_CONTAINER_NAME=<azure_cosmos_db_container>
    ```
 
 10. Run the API locally: `poetry run start`
@@ -279,7 +286,7 @@ The API requires the following environment variables to work:
 
 | Name             | Required | Description                                                                                                                                                                                                                                  |
 | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATASTORE`      | Yes      | This specifies the vector database provider you want to use to store and query embeddings. You can choose from `chroma`, `pinecone`, `weaviate`, `zilliz`, `milvus`, `qdrant`, `redis`, `azuresearch`, `supabase`, `postgres`, `analyticdb`. |
+| `DATASTORE`      | Yes      | This specifies the vector database provider you want to use to store and query embeddings. You can choose from `chroma`, `pinecone`, `weaviate`, `zilliz`, `milvus`, `qdrant`, `redis`, `azuresearch`, `supabase`, `postgres`, `analyticdb`, `azurecosmosdb`. |
 | `BEARER_TOKEN`   | Yes      | This is a secret token that you need to authenticate your requests to the API. You can generate one using any tool or method you prefer, such as [jwt.io](https://jwt.io/).                                                                  |
 | `OPENAI_API_KEY` | Yes      | This is your OpenAI API key that you need to generate embeddings using the `text-embedding-ada-002` model. You can get an API key by creating an account on [OpenAI](https://openai.com/).                                                   |
 
@@ -351,6 +358,10 @@ For detailed setup instructions, refer to [`/docs/providers/llama/setup.md`](/do
 #### AnalyticDB
 
 [AnalyticDB](https://www.alibabacloud.com/help/en/analyticdb-for-postgresql/latest/product-introduction-overview) is a distributed cloud-native vector database designed for storing documents and vector embeddings. It is fully compatible with PostgreSQL syntax and managed by Alibaba Cloud. AnalyticDB offers a powerful vector compute engine, processing billions of data vectors and providing features such as indexing algorithms, structured and unstructured data capabilities, real-time updates, distance metrics, scalar filtering, and time travel searches. For detailed setup instructions, refer to [`/docs/providers/analyticdb/setup.md`](/docs/providers/analyticdb/setup.md).
+
+#### Azure Cosmos DB
+
+[Azure Cosmos DB](https://azure.microsoft.com/products/search/) is a TODO.
 
 ### Running the API locally
 
