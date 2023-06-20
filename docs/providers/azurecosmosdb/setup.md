@@ -1,7 +1,8 @@
 # Azure Cosmos DB
 
-[Azure Cosmos DB](https://azure.microsoft.com/en-us/products/cosmos-db/) is a TODO
+[Azure Cosmos DB](https://azure.microsoft.com/en-us/products/cosmos-db/) Azure Cosmos DB is a fully managed NoSQL and relational database for modern app development. Using the Azure Cosmos DB for MongoDB vCore service, you can store vector embeddings in your documents and perform [vector similarity search](https://learn.microsoft.com/azure/cosmos-db/mongodb/vcore/vector-search) on a fully managed MongoDB-compatible database service.
 
+Learn more about Azure Cosmos DB for MongoDB vCore [here](https://learn.microsoft.com/azure/cosmos-db/mongodb/vcore/). If you don't have an Azure account, you can start setting one up [here](https://azure.microsoft.com/).
 
 ## Environment variables
 
