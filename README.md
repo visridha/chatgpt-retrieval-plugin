@@ -368,7 +368,7 @@ For detailed setup instructions, refer to [`/docs/providers/llama/setup.md`](/do
 
 #### Azure Cosmos DB
 
-[Azure Cosmos DB](https://azure.microsoft.com/en-us/products/cosmos-db/) Azure Cosmos DB is a fully managed NoSQL and relational database for modern app development. Using the Azure Cosmos DB for MongoDB vCore service, you can store vector embeddings in your documents and perform [vector similarity search](https://learn.microsoft.com/azure/cosmos-db/mongodb/vcore/vector-search) on a fully managed MongoDB-compatible database service. For detailed setup instructions, refer to [`/docs/providers/azurecosmosdb/setup.md`](/docs/providers/azurecosmosdb/setup.md).
+[Azure Cosmos DB](https://azure.microsoft.com/en-us/products/cosmos-db/) Azure Cosmos DB is a fully managed NoSQL and relational database for modern app development. Using Azure Cosmos DB for MongoDB vCore, you can store vector embeddings in your documents and perform [vector similarity search](https://learn.microsoft.com/azure/cosmos-db/mongodb/vcore/vector-search) on a fully managed MongoDB-compatible database service. For detailed setup instructions, refer to [`/docs/providers/azurecosmosdb/setup.md`](/docs/providers/azurecosmosdb/setup.md).
 
 ### Running the API locally
 
