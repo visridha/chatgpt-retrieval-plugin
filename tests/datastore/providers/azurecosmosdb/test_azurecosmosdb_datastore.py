@@ -14,9 +14,10 @@ os.environ["DATASTORE"] = "azurecosmosdb"
 os.environ["AZCOSMOS_API"] = "mongo"
 # Replace the below values with real azure cosmos db service to test the azure cosmosDB data store
 # Will fail anyway if not set to real values, but allows test to be discovered
-os.environ["AZCOSMOS_CONNSTR"] = "mongodb+srv://akataria3011:Basketball24@cluster-chatgpt-testing.mongocluster.cosmos.azure.com/?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false&maxIdleTimeMS=120000"
+os.environ[
+    "AZCOSMOS_CONNSTR"] = "mongodb+srv://akataria3011:Basketball24@cluster-chatgpt-testing.mongocluster.cosmos.azure.com/?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false&maxIdleTimeMS=120000"
 os.environ["AZCOSMOS_DATABASE_NAME"] = "chatgpt"
-os.environ["AZCOSMOS_CONTAINER_NAME"] ="chatgptTesting"
+os.environ["AZCOSMOS_CONTAINER_NAME"] = "chatgptTesting"
 
 
 def create_embedding(non_zero_pos: int) -> List[float]:
@@ -24,6 +25,7 @@ def create_embedding(non_zero_pos: int) -> List[float]:
     vector = [0.0] * 1536
     vector[non_zero_pos - 1] = 1.0
     return vector
+
 
 @pytest.fixture
 def initial_document_chunks() -> Dict[str, List[DocumentChunk]]:
@@ -75,12 +77,38 @@ async def test_upsert(
 
 
 @pytest.mark.asyncio
+async def test_query(
+        azurecosmosdb_datastore: AzureCosmosDBDataStore,
+        initial_document_chunks: Dict[str, List[DocumentChunk]],
+        queries: List[QueryWithEmbedding],
+) -> None:
+    """Test basic query."""
+    await azurecosmosdb_datastore.delete(delete_all=True)
+    # insert to prepare for the test
+    await azurecosmosdb_datastore._upsert(initial_document_chunks)
+
+    query_results = await azurecosmosdb_datastore._query(queries)
+    assert len(query_results) == len(queries)
+
+    query_0_results = query_results[0].results
+    query_1_results = query_results[1].results
+
+    assert len(query_0_results) == 1
+    assert len(query_1_results) == 2
+
+    # NOTE: this is the correct behavior
+    assert query_0_results[0].id == "doc:first-doc:chunk:first-doc-4"
+    assert query_1_results[0].id == "doc:first-doc:chunk:first-doc-5"
+    assert query_1_results[1].id == "doc:first-doc:chunk:first-doc-4"
+
+
+@pytest.mark.asyncio
 async def test_delete(azurecosmosdb_datastore: AzureCosmosDBDataStore) -> None:
     await azurecosmosdb_datastore.delete(delete_all=True)
     chunk1 = DocumentChunk(
         id="deleteChunk1",
         text="delete text 1",
-        embedding=[1]*1536,
+        embedding=[1] * 1536,
         metadata=DocumentChunkMetadata(),
     )
     chunk2 = DocumentChunk(
@@ -116,7 +144,7 @@ async def test_delete_all(azurecosmosdb_datastore: AzureCosmosDBDataStore) -> No
     chunk = DocumentChunk(
         id="deleteChunk",
         text="delete text",
-        embedding=[1]*1536,
+        embedding=[1] * 1536,
         metadata=DocumentChunkMetadata(),
     )
     await azurecosmosdb_datastore._upsert({"deleteDoc": [chunk]})
