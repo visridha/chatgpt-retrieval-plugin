@@ -126,7 +126,7 @@ class MongoStoreApi(AzureCosmosDBStoreApi):
         return query_results
     async def drop_container(self):
         self.collection.drop()
-        await self._ensure()
+        await self.ensure()
     async def delete_filter(self, filter: DocumentMetadataFilter):
         delete_filter = self._get_metadata_filter(filter)
         self.collection.delete_many(delete_filter)
