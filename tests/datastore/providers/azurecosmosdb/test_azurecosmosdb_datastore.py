@@ -15,7 +15,7 @@ os.environ["AZCOSMOS_API"] = "mongo"
 # Replace the below values with real azure cosmos db service to test the azure cosmosDB data store
 # Will fail anyway if not set to real values, but allows test to be discovered
 os.environ[
-    "AZCOSMOS_CONNSTR"] = "mongodb+srv://akataria3011:Basketball24@cluster-chatgpt-testing.mongocluster.cosmos.azure.com/?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false&maxIdleTimeMS=120000"
+    "AZCOSMOS_CONNSTR"] = ""
 os.environ["AZCOSMOS_DATABASE_NAME"] = "chatgpt"
 os.environ["AZCOSMOS_CONTAINER_NAME"] = "chatgptTesting"
 
