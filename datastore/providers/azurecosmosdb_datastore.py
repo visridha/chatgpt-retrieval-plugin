@@ -1,5 +1,7 @@
 import logging
 import os
+
+import certifi
 import numpy as np
 import pymongo
 
@@ -25,36 +27,44 @@ AZCOSMOS_CONNSTR = os.environ.get("AZCOSMOS_CONNSTR")
 AZCOSMOS_DATABASE_NAME = os.environ.get("AZCOSMOS_DATABASE_NAME")
 AZCOSMOS_CONTAINER_NAME = os.environ.get("AZCOSMOS_CONTAINER_NAME")
 assert AZCOSMOS_API is not None
-assert AZCOSMOS_API is not None
+assert AZCOSMOS_CONNSTR is not None
 assert AZCOSMOS_DATABASE_NAME is not None
 assert AZCOSMOS_CONTAINER_NAME is not None
 
 # OpenAI Ada Embeddings Dimension
 VECTOR_DIMENSION = 1536
 
+
 # Abstract class similar to the original data store that allows API level abstraction
 class AzureCosmosDBStoreApi(ABC):
     @abstractmethod
     async def ensure(self):
         raise NotImplementedError
+
     @abstractmethod
     async def upsert_core(self, docId: str, chunks: List[DocumentChunk]) -> List[str]:
         raise NotImplementedError
+
     @abstractmethod
     async def query_core(self, query: QueryWithEmbedding) -> List[DocumentChunkWithScore]:
         raise NotImplementedError
+
     @abstractmethod
     async def drop_container(self):
         raise NotImplementedError
+
     @abstractmethod
     async def delete_filter(self, filter: DocumentMetadataFilter):
         raise NotImplementedError
+
     @abstractmethod
     async def delete_ids(self, ids: List[str]):
         raise NotImplementedError
+
     @abstractmethod
     async def delete_document_ids(self, documentIds: List[str]):
         raise NotImplementedError
+
 
 class MongoStoreApi(AzureCosmosDBStoreApi):
     def __init__(self, mongoClient: MongoClient):
@@ -63,17 +73,17 @@ class MongoStoreApi(AzureCosmosDBStoreApi):
     @staticmethod
     def _get_metadata_filter(filter: DocumentMetadataFilter) -> dict:
         returnedFilter: dict = {}
-        if filter.document_id != None:
+        if filter.document_id is not None:
             returnedFilter["document_id"] = filter.document_id
-        if filter.author != None:
+        if filter.author is not None:
             returnedFilter["metadata.author"] = filter.author
-        if filter.start_date != None:
-            returnedFilter["metadata.created_at"] = { "$gt": datetime.fromisoformat(filter.start_date) }
-        if filter.end_date != None:
-            returnedFilter["metadata.created_at"] = { "$lt": datetime.fromisoformat(filter.end_date) }
-        if filter.source != None:
+        if filter.start_date is not None:
+            returnedFilter["metadata.created_at"] = {"$gt": datetime.fromisoformat(filter.start_date)}
+        if filter.end_date is not None:
+            returnedFilter["metadata.created_at"] = {"$lt": datetime.fromisoformat(filter.end_date)}
+        if filter.source is not None:
             returnedFilter["metadata.source"] = filter.source
-        if filter.source_id != None:
+        if filter.source_id is not None:
             returnedFilter["metadata.source_id"] = filter.source_id
         return returnedFilter
 
@@ -82,58 +92,89 @@ class MongoStoreApi(AzureCosmosDBStoreApi):
         self.collection = self.mongoClient[AZCOSMOS_DATABASE_NAME][AZCOSMOS_CONTAINER_NAME]
 
         indexes = self.collection.index_information()
-        if (indexes.get("embedding_cosmosSearch") == None):
+        if indexes.get("embedding_cosmosSearch") is None:
             # Ensure the vector index exists.
-            indexDefs:List[any] = [
-                { "name": "embedding_cosmosSearch", "key": { "embedding": "cosmosSearch" }, "cosmosSearchOptions": { "kind": "vector-ivf", "similarity": "COS", "dimensions": VECTOR_DIMENSION } }
+            indexDefs: List[any] = [
+                {
+                    "name": "embedding_cosmosSearch",
+                    "key": {"embedding": "cosmosSearch"},
+                    "cosmosSearchOptions": {
+                        "kind": "vector-ivf",
+                        "similarity": "COS",
+                        "dimensions": VECTOR_DIMENSION,
+                    },
+                }
             ]
-            self.mongoClient[AZCOSMOS_DATABASE_NAME].command("createIndexes", AZCOSMOS_CONTAINER_NAME, indexes = indexDefs)
+            self.mongoClient[AZCOSMOS_DATABASE_NAME].command("createIndexes", AZCOSMOS_CONTAINER_NAME,
+                                                             indexes=indexDefs)
+
     async def upsert_core(self, docId: str, chunks: List[DocumentChunk]) -> List[str]:
         # Until nested doc embedding support is done, treat each chunk as a separate doc.
         doc_ids: List[str] = []
         for chunk in chunks:
-            finalDocChunk:dict = {}
-            finalDocChunk["_id"] = f"doc:{docId}:chunk:{chunk.id}"
-            finalDocChunk["document_id"] = docId
-            finalDocChunk['embedding'] = chunk.embedding
-            finalDocChunk["text"] = chunk.text
-            finalDocChunk["metadata"] = chunk.metadata.__dict__
+            finalDocChunk: dict = {
+                "_id": f"doc:{docId}:chunk:{chunk.id}",
+                "document_id": docId,
+                'embedding': chunk.embedding, "text": chunk.text,
+                "metadata": chunk.metadata.__dict__
+            }
 
-            if chunk.metadata.created_at != None:
+            if chunk.metadata.created_at is not None:
                 finalDocChunk["metadata"]["created_at"] = datetime.fromisoformat(chunk.metadata.created_at)
             self.collection.insert_one(finalDocChunk)
             doc_ids.append(finalDocChunk["_id"])
         return doc_ids
+
     async def query_core(self, query: QueryWithEmbedding) -> List[DocumentChunkWithScore]:
         pipeline = [
-                { "$search": { "cosmosSearch": { "vector": query.embedding, "path": "embedding", "k": query.top_k } } }
-            ]
+            {
+                "$search": {
+                    "cosmosSearch": {
+                        "vector": query.embedding,
+                        "path": "embedding",
+                        "k": query.top_k},
+                    "returnStoredSource": True}
+            },
+            {
+                "$project": {
+                    "similarityScore": {
+                        "$meta": "searchScore"
+                    },
+                    "document": "$$ROOT"
+                }
+            }
+        ]
 
         # TODO: Add in match filter (once it can be satisfied).
         # Perform vector search
         query_results: List[DocumentChunkWithScore] = []
         for aggResult in self.collection.aggregate(pipeline):
-            finalMetadata = aggResult["metadata"]
-            if finalMetadata["created_at"] != None:
+            finalMetadata = aggResult["document"]["metadata"]
+            if finalMetadata["created_at"] is not None:
                 finalMetadata["created_at"] = datetime.isoformat(finalMetadata["created_at"])
             result = DocumentChunkWithScore(
                 id=aggResult["_id"],
-                score=1, # TODO: Need to fill up score once there's meta queries.
-                text=aggResult["text"],
-                metadata= finalMetadata
+                score=aggResult["similarityScore"],
+                text=aggResult["document"]["text"],
+                metadata=finalMetadata
             )
             query_results.append(result)
         return query_results
+
     async def drop_container(self):
         self.collection.drop()
         await self.ensure()
+
     async def delete_filter(self, filter: DocumentMetadataFilter):
         delete_filter = self._get_metadata_filter(filter)
         self.collection.delete_many(delete_filter)
+
     async def delete_ids(self, ids: List[str]):
-        self.collection.delete_many({ "_id": { "$in": ids }})
+        self.collection.delete_many({"_id": {"$in": ids}})
+
     async def delete_document_ids(self, documentIds: List[str]):
-        self.collection.delete_many({ "document_id": { "$in": documentIds }})
+        self.collection.delete_many({"document_id": {"$in": documentIds}})
+
 
 # Datastore implementation.
 class AzureCosmosDBDataStore(DataStore):
@@ -146,12 +187,11 @@ class AzureCosmosDBDataStore(DataStore):
         # Create underlying data store based on the API definition.
         # Right now this only supports Mongo, but set up to support more.
         apiStore: AzureCosmosDBStoreApi = None
-        match AZCOSMOS_API:
-            case "mongo":
-                mongoClient = MongoClient(AZCOSMOS_CONNSTR)
-                apiStore = MongoStoreApi(mongoClient)
-            case _:
-                raise NotImplementedError
+        if AZCOSMOS_API == "mongo":
+            mongoClient = MongoClient(AZCOSMOS_CONNSTR)
+            apiStore = MongoStoreApi(mongoClient)
+        else:
+            raise NotImplementedError
 
         await apiStore.ensure()
         store = AzureCosmosDBDataStore(apiStore)
@@ -171,8 +211,8 @@ class AzureCosmosDBDataStore(DataStore):
         return doc_ids
 
     async def _query(
-        self,
-        queries: List[QueryWithEmbedding],
+            self,
+            queries: List[QueryWithEmbedding],
     ) -> List[QueryResult]:
         """
         Takes in a list of queries with embeddings and filters and
@@ -184,7 +224,6 @@ class AzureCosmosDBDataStore(DataStore):
         # Gather query results in a pipeline
         logging.info(f"Gathering {len(queries)} query results", flush=True)
         for query in queries:
-
             logging.info(f"Query: {query.query}")
             query_results = await self.cosmosStore.query_core(query)
 
@@ -193,10 +232,10 @@ class AzureCosmosDBDataStore(DataStore):
         return results
 
     async def delete(
-        self,
-        ids: Optional[List[str]] = None,
-        filter: Optional[DocumentMetadataFilter] = None,
-        delete_all: Optional[bool] = None,
+            self,
+            ids: Optional[List[str]] = None,
+            filter: Optional[DocumentMetadataFilter] = None,
+            delete_all: Optional[bool] = None,
     ) -> bool:
         """
         Removes vectors by ids, filter, or everything in the datastore.
@@ -208,8 +247,8 @@ class AzureCosmosDBDataStore(DataStore):
             return True
 
         if filter:
-            if filter.document_id != None:
-                await self.cosmosStore.delete_document_ids([ filter.document_id ])
+            if filter.document_id is not None:
+                await self.cosmosStore.delete_document_ids([filter.document_id])
             else:
                 await self.cosmosStore.delete_filter(filter)
 

@@ -1,6 +1,6 @@
 import pytest
 from typing import Dict, List
-import os
+from dotenv import dotenv_values
 
 from datastore.datastore import DataStore
 from datastore.providers.azurecosmosdb_datastore import AzureCosmosDBDataStore
@@ -10,21 +10,32 @@ from models.models import (
     QueryWithEmbedding,
 )
 
-os.environ["DATASTORE"] = "azurecosmosdb"
-os.environ["AZCOSMOS_API"] = "mongo"
-# Replace the below values with real azure cosmos db service to test the azure cosmosDB data store
-# Will fail anyway if not set to real values, but allows test to be discovered
-os.environ[
-    "AZCOSMOS_CONNSTR"] = ""
-os.environ["AZCOSMOS_DATABASE_NAME"] = "chatgpt"
-os.environ["AZCOSMOS_CONTAINER_NAME"] = "chatgptTesting"
-
 
 def create_embedding(non_zero_pos: int) -> List[float]:
     # create a vector with a single non-zero value of dimension 1536
     vector = [0.0] * 1536
     vector[non_zero_pos - 1] = 1.0
     return vector
+
+
+@pytest.fixture
+def azure_cosmos_db_settings_from_dot_env() -> dict:
+    """
+    Reads the Azure CosmosDB environment variables for the .env file.
+
+    Returns:
+        dict: The Azure CosmosDB environment variables
+    """
+    config = dotenv_values(".env")
+    env_variables = {
+        "DATASTORE": "azurecosmosdb",
+        "AZCOSMOS_API": "mongo",  # Right now CosmosDB only supports vector search in Mongo.
+        "AZCOSMOS_CONNSTR": config.get("AZCOSMOS_CONNSTR"),
+        "AZCOSMOS_DATABASE_NAME": config.get("AZCOSMOS_DATABASE_NAME"),
+        "AZCOSMOS_CONTAINER_NAME": config.get("AZCOSMOS_CONTAINER_NAME"),
+    }
+
+    return env_variables
 
 
 @pytest.fixture
