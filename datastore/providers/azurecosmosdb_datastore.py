@@ -21,8 +21,9 @@ from models.models import (
 )
 from services.date import to_unix_timestamp
 
-# Read environment variables for Mongo
-AZCOSMOS_API = os.environ.get("AZCOSMOS_API", "mongo")
+
+# Read environment variables for CosmosDB Mongo vCore
+AZCOSMOS_API = os.environ.get("AZCOSMOS_API", "mongo-vcore")
 AZCOSMOS_CONNSTR = os.environ.get("AZCOSMOS_CONNSTR")
 AZCOSMOS_DATABASE_NAME = os.environ.get("AZCOSMOS_DATABASE_NAME")
 AZCOSMOS_CONTAINER_NAME = os.environ.get("AZCOSMOS_CONTAINER_NAME")
@@ -38,7 +39,7 @@ VECTOR_DIMENSION = 1536
 # Abstract class similar to the original data store that allows API level abstraction
 class AzureCosmosDBStoreApi(ABC):
     @abstractmethod
-    async def ensure(self):
+    async def ensure(self, num_lists, similarity):
         raise NotImplementedError
 
     @abstractmethod
@@ -87,7 +88,7 @@ class MongoStoreApi(AzureCosmosDBStoreApi):
             returnedFilter["metadata.source_id"] = filter.source_id
         return returnedFilter
 
-    async def ensure(self):
+    async def ensure(self, num_lists, similarity):
         assert self.mongoClient.is_mongos
         self.collection = self.mongoClient[AZCOSMOS_DATABASE_NAME][AZCOSMOS_CONTAINER_NAME]
 
@@ -100,7 +101,8 @@ class MongoStoreApi(AzureCosmosDBStoreApi):
                     "key": {"embedding": "cosmosSearch"},
                     "cosmosSearchOptions": {
                         "kind": "vector-ivf",
-                        "similarity": "COS",
+                        "numLists": num_lists,
+                        "similarity": similarity,
                         "dimensions": VECTOR_DIMENSION,
                     },
                 }
@@ -163,7 +165,6 @@ class MongoStoreApi(AzureCosmosDBStoreApi):
 
     async def drop_container(self):
         self.collection.drop()
-        await self.ensure()
 
     async def delete_filter(self, filter: DocumentMetadataFilter):
         delete_filter = self._get_metadata_filter(filter)
@@ -177,23 +178,40 @@ class MongoStoreApi(AzureCosmosDBStoreApi):
 
 
 # Datastore implementation.
+"""
+A class representing a memory store for Azure CosmosDB DataStore, currently only supports Mongo vCore
+"""
 class AzureCosmosDBDataStore(DataStore):
     def __init__(self, cosmosStore: AzureCosmosDBStoreApi):
         self.cosmosStore = cosmosStore
 
+    """
+    Creates a new datastore based on the Cosmos Api provided in the environment variables, 
+    only supports Mongo vCore for now
+    
+    Args:
+        numLists (int)   : This integer is the number of clusters that the inverted file (IVF) index 
+                                  uses to group the vector data. We recommend that numLists is set to 
+                                  documentCount/1000 for up to 1 million documents and to sqrt(documentCount) 
+                                  for more than 1 million documents. Using a numLists value of 1 is akin to 
+                                  performing brute-force search, which has limited performance.
+        similarity (str) : Similarity metric to use with the IVF index. Possible options are COS (cosine distance),
+                           L2 (Euclidean distance), and IP (inner product). 
+                      
+    """
     @staticmethod
-    async def create() -> DataStore:
+    async def create(num_lists, similarity) -> DataStore:
 
         # Create underlying data store based on the API definition.
         # Right now this only supports Mongo, but set up to support more.
         apiStore: AzureCosmosDBStoreApi = None
-        if AZCOSMOS_API == "mongo":
+        if AZCOSMOS_API == "mongo-vcore":
             mongoClient = MongoClient(AZCOSMOS_CONNSTR)
             apiStore = MongoStoreApi(mongoClient)
         else:
             raise NotImplementedError
 
-        await apiStore.ensure()
+        await apiStore.ensure(num_lists, similarity)
         store = AzureCosmosDBDataStore(apiStore)
         return store
 

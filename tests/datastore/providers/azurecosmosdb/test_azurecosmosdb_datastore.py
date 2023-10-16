@@ -11,6 +11,10 @@ from models.models import (
 )
 
 
+num_lists = 1
+similarity = "COS"
+
+
 def create_embedding(non_zero_pos: int) -> List[float]:
     # create a vector with a single non-zero value of dimension 1536
     vector = [0.0] * 1536
@@ -29,7 +33,7 @@ def azure_cosmos_db_settings_from_dot_env() -> dict:
     config = dotenv_values(".env")
     env_variables = {
         "DATASTORE": "azurecosmosdb",
-        "AZCOSMOS_API": "mongo",  # Right now CosmosDB only supports vector search in Mongo.
+        "AZCOSMOS_API": config.get(("AZCOSMOS_API")),  # Right now CosmosDB only supports vector search in Mongo vCore.
         "AZCOSMOS_CONNSTR": config.get("AZCOSMOS_CONNSTR"),
         "AZCOSMOS_DATABASE_NAME": config.get("AZCOSMOS_DATABASE_NAME"),
         "AZCOSMOS_CONTAINER_NAME": config.get("AZCOSMOS_CONTAINER_NAME"),
@@ -73,7 +77,7 @@ def queries() -> List[QueryWithEmbedding]:
 
 @pytest.fixture
 async def azurecosmosdb_datastore() -> DataStore:
-    return await AzureCosmosDBDataStore.create()
+    return await AzureCosmosDBDataStore.create(num_lists=num_lists, similarity=similarity)
 
 
 @pytest.mark.asyncio
