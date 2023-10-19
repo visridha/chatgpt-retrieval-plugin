@@ -117,7 +117,8 @@ class MongoStoreApi(AzureCosmosDBStoreApi):
             finalDocChunk: dict = {
                 "_id": f"doc:{docId}:chunk:{chunk.id}",
                 "document_id": docId,
-                'embedding': chunk.embedding, "text": chunk.text,
+                'embedding': chunk.embedding,
+                "text": chunk.text,
                 "metadata": chunk.metadata.__dict__
             }
 
