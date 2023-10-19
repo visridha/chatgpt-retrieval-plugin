@@ -25,40 +25,48 @@ This README provides detailed information on how to set up, develop, and deploy 
 
 ## Table of Contents
 
-- [Quickstart](#quickstart)
-- [About](#about)
-  - [Plugins](#plugins)
-  - [Retrieval Plugin](#retrieval-plugin)
-  - [Memory Feature](#memory-feature)
-  - [Security](#security)
-  - [API Endpoints](#api-endpoints)
-- [Development](#development)
-  - [Setup](#setup)
-    - [General Environment Variables](#general-environment-variables)
-  - [Choosing a Vector Database](#choosing-a-vector-database)
-    - [Pinecone](#pinecone)
-    - [Weaviate](#weaviate)
-    - [Zilliz](#zilliz)
-    - [Milvus](#milvus)
-    - [Qdrant](#qdrant)
-    - [Redis](#redis)
-    - [Llama Index](#llamaindex)
-    - [Chroma](#chroma)
-    - [Azure Cognitive Search](#azure-cognitive-search)
-    - [Supabase](#supabase)
-    - [Postgres](#postgres)
-    - [AnalyticDB](#analyticdb)
-  - [Running the API Locally](#running-the-api-locally)
-  - [Testing a Localhost Plugin in ChatGPT](#testing-a-localhost-plugin-in-chatgpt)
-  - [Personalization](#personalization)
-  - [Authentication Methods](#authentication-methods)
-- [Deployment](#deployment)
-- [Installing a Developer Plugin](#installing-a-developer-plugin)
-- [Webhooks](#webhooks)
-- [Scripts](#scripts)
-- [Limitations](#limitations)
-- [Contributors](#contributors)
-- [Future Directions](#future-directions)
+- [ChatGPT Retrieval Plugin](#chatgpt-retrieval-plugin)
+  - [Introduction](#introduction)
+  - [Table of Contents](#table-of-contents)
+  - [Quickstart](#quickstart)
+    - [Testing in ChatGPT](#testing-in-chatgpt)
+  - [About](#about)
+    - [Plugins](#plugins)
+    - [Retrieval Plugin](#retrieval-plugin)
+    - [Memory Feature](#memory-feature)
+    - [Security](#security)
+    - [API Endpoints](#api-endpoints)
+  - [Development](#development)
+    - [Setup](#setup)
+      - [General Environment Variables](#general-environment-variables)
+    - [Using the plugin with Azure OpenAI](#using-the-plugin-with-azure-openai)
+    - [Choosing a Vector Database](#choosing-a-vector-database)
+      - [Pinecone](#pinecone)
+      - [Weaviate](#weaviate)
+      - [Zilliz](#zilliz)
+      - [Milvus](#milvus)
+      - [Qdrant](#qdrant)
+      - [Redis](#redis)
+      - [LlamaIndex](#llamaindex)
+      - [Chroma](#chroma)
+      - [Azure Cognitive Search](#azure-cognitive-search)
+      - [Supabase](#supabase)
+      - [Postgres](#postgres)
+      - [AnalyticDB](#analyticdb)
+      - [Azure Cosmos DB](#azure-cosmos-db)
+    - [Running the API locally](#running-the-api-locally)
+    - [Testing a Localhost Plugin in ChatGPT](#testing-a-localhost-plugin-in-chatgpt)
+    - [Personalization](#personalization)
+    - [Authentication Methods](#authentication-methods)
+  - [Deployment](#deployment)
+  - [Installing a Developer Plugin](#installing-a-developer-plugin)
+  - [Webhooks](#webhooks)
+  - [Scripts](#scripts)
+  - [Pull Request (PR) Checklist](#pull-request-pr-checklist)
+  - [Pull Request Naming Convention](#pull-request-naming-convention)
+  - [Limitations](#limitations)
+  - [Future Directions](#future-directions)
+  - [Contributors](#contributors)
 
 ## Quickstart
 
@@ -166,6 +174,12 @@ Follow these steps to quickly set up and run the ChatGPT Retrieval Plugin:
    export PG_USER=<postgres_user>
    export PG_PASSWORD=<postgres_password>
    export PG_DATABASE=<postgres_database>
+
+   # Azure Cosmos DB
+   export AZCOSMOS_API=<api_supporting_vector_search>
+   export AZCOSMOS_CONNSTR=<your_connection_string_to_azure_cosmosdb_endpoint>
+   export AZCOSMOS_DATABASE_NAME=<azure_cosmos_db_database>
+   export AZCOSMOS_CONTAINER_NAME=<azure_cosmos_db_container>
    ```
 
 10. Run the API locally: `poetry run start`
@@ -279,7 +293,7 @@ The API requires the following environment variables to work:
 
 | Name             | Required | Description                                                                                                                                                                                                                                  |
 | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATASTORE`      | Yes      | This specifies the vector database provider you want to use to store and query embeddings. You can choose from `chroma`, `pinecone`, `weaviate`, `zilliz`, `milvus`, `qdrant`, `redis`, `azuresearch`, `supabase`, `postgres`, `analyticdb`. |
+| `DATASTORE`      | Yes      | This specifies the vector database provider you want to use to store and query embeddings. You can choose from `chroma`, `pinecone`, `weaviate`, `zilliz`, `milvus`, `qdrant`, `redis`, `azuresearch`, `supabase`, `postgres`, `analyticdb`, `azurecosmosdb`. |
 | `BEARER_TOKEN`   | Yes      | This is a secret token that you need to authenticate your requests to the API. You can generate one using any tool or method you prefer, such as [jwt.io](https://jwt.io/).                                                                  |
 | `OPENAI_API_KEY` | Yes      | This is your OpenAI API key that you need to generate embeddings using the `text-embedding-ada-002` model. You can get an API key by creating an account on [OpenAI](https://openai.com/).                                                   |
 
@@ -351,6 +365,10 @@ For detailed setup instructions, refer to [`/docs/providers/llama/setup.md`](/do
 #### AnalyticDB
 
 [AnalyticDB](https://www.alibabacloud.com/help/en/analyticdb-for-postgresql/latest/product-introduction-overview) is a distributed cloud-native vector database designed for storing documents and vector embeddings. It is fully compatible with PostgreSQL syntax and managed by Alibaba Cloud. AnalyticDB offers a powerful vector compute engine, processing billions of data vectors and providing features such as indexing algorithms, structured and unstructured data capabilities, real-time updates, distance metrics, scalar filtering, and time travel searches. For detailed setup instructions, refer to [`/docs/providers/analyticdb/setup.md`](/docs/providers/analyticdb/setup.md).
+
+#### Azure Cosmos DB
+
+[Azure Cosmos DB](https://azure.microsoft.com/en-us/products/cosmos-db/) Azure Cosmos DB is a fully managed NoSQL and relational database for modern app development. Using Azure Cosmos DB for MongoDB vCore, you can store vector embeddings in your documents and perform [vector similarity search](https://learn.microsoft.com/azure/cosmos-db/mongodb/vcore/vector-search) on a fully managed MongoDB-compatible database service. For detailed setup instructions, refer to [`/docs/providers/azurecosmosdb/setup.md`](/docs/providers/azurecosmosdb/setup.md).
 
 ### Running the API locally
 
